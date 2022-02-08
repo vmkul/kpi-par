@@ -1,11 +1,13 @@
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*;
+import java.util.ArrayList;
 
 public class BounceFrame extends JFrame {
     private BallCanvas canvas;
     private int droppedCount = 0;
     private JLabel droppedCountLabel;
+    private Thread prevThread = null;
     public static final int WIDTH = 900;
     public static final int HEIGHT = 700;
     
@@ -40,21 +42,21 @@ public class BounceFrame extends JFrame {
 	buttonAddRegular.addActionListener(new ActionListener() {
 		@Override
 		public void actionPerformed(ActionEvent e) {
-		    addBall(Color.darkGray, 5);
+		    addBall(Color.darkGray, 5, true);
 		}
 	    });
 
 	buttonAddBlue.addActionListener(new ActionListener() {
 		@Override
 		public void actionPerformed(ActionEvent e) {
-		    addBall(Color.blue, 1);
+		    addBall(Color.blue, Thread.MIN_PRIORITY, false);
 		}
 	    });
 
 	buttonAddRed.addActionListener(new ActionListener() {
 		@Override
 		public void actionPerformed(ActionEvent e) {
-		    addBall(Color.red, 10);
+		    addBall(Color.red, Thread.MAX_PRIORITY, false);
 		}
 	    });
 	
@@ -74,14 +76,20 @@ public class BounceFrame extends JFrame {
 	content.add(buttonPanel, BorderLayout.SOUTH);
     }
 
-    private void addBall(Color c, int priority) {
-	Ball b = new Ball(canvas, this, c);
+    private void addBall(Color c, int priority, boolean waitForPrevious) {
+	Ball b;
+	if (waitForPrevious) {
+	    b = new Ball(canvas, this, c, prevThread);
+	} else {
+	    b = new Ball(canvas, this, c);
+	}
 	canvas.addBall(b);
 
 	BallThread thread = new BallThread(b);
+	prevThread = thread;
 	thread.setPriority(priority);
 	thread.start();
-	
+
 	System.out.println("Thread name = " + thread.getName());
     }
 

@@ -7,7 +7,7 @@ public class BallThread extends Thread {
     
     @Override
     public void run(){
-	// try{
+	try{
 	    while (true) {
 		boolean hasDropped = b.move();
 		if (hasDropped) {
@@ -15,11 +15,11 @@ public class BallThread extends Thread {
 		    break;
 		}
 		
-		System.out.println("Thread name = " + Thread.currentThread().getName());
-		// Thread.sleep(5);
+		// System.out.println("Thread name = " + Thread.currentThread().getName());
+		Thread.sleep(5);
 	    }
-	// } catch(InterruptedException ex){
+	} catch(InterruptedException ex){
 
-	// }
+	}
     }
 }

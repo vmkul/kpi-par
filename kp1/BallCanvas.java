@@ -20,23 +20,17 @@ public class BallCanvas extends JPanel{
     }
 
     public boolean hasDropped(Ball b) {
-	return false;
-	// for (int i = 0; i < pockets.size(); i++) {
-	//     if (pockets.get(i).collidesWith(b)) {
-	// 	return true;
-	//     }
-	// }
+	for (int i = 0; i < pockets.size(); i++) {
+	    if (pockets.get(i).collidesWith(b)) {
+		return true;
+	    }
+	}
 
-	// return false;
+	return false;
     }
     
     @Override
     public void paintComponent(Graphics g){
-	try {
-	    Thread.sleep(5);
-	} catch (InterruptedException ex) {
-	    
-	}
 	super.paintComponent(g);
 	Graphics2D g2 = (Graphics2D)g;
 
