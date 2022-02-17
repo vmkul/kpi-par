@@ -7,7 +7,7 @@ public class Main {
     public synchronized static void main(String[] args) {
 	Matrix a = new Matrix(1000);
 	Matrix b = new Matrix(1000);
-	BlockStriped striped = new BlockStriped(0, a, b);
+	BlockStriped striped = new BlockStriped(100, a, b);
 
 	System.out.println("Matrix A: ");
 
@@ -18,12 +18,14 @@ public class Main {
 	Matrix seqResult = Sequential.matrixMult(a, b);
 	Instant finish = Instant.now();
 	long timeElapsedSeq = Duration.between(start, finish).toMillis();
+	//seqResult.print();
 
 	System.out.println("BlockStriped A * B: ");
 	start = Instant.now();
 	Matrix stripedResult = striped.matrixMult();
 	finish = Instant.now();
 	long timeElapsedStriped = Duration.between(start, finish).toMillis();
+	//stripedResult.print();
 	System.out.println("Duration of seq: " + timeElapsedSeq);
 	System.out.println("Duration of striped: " + timeElapsedStriped);
 

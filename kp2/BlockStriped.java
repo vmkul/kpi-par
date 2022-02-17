@@ -1,72 +1,96 @@
 import java.util.ArrayList;
-import java.util.concurrent.locks.ReentrantLock;
 
 class Subtask extends Thread {
     BlockStriped controller;
-    Integer[] row;
-    Integer[] col;
-    int size;
+    ArrayList<Integer[]> rowBatch;
+    ArrayList<Integer[]> colBatch;
     boolean isAlive = true;
 
-    public Subtask(int size, BlockStriped controller) {
-	this.size = size;
+    public Subtask(BlockStriped controller) {
 	this.controller = controller;
     }
 
-    public void setRow(Integer[] row) {
-	this.row = row;
+    public void setRowBatch(ArrayList<Integer[]> rowBatch) {
+	this.rowBatch = rowBatch;
     }
 
-    public void setCol(Integer[] col) {
-	this.col = col;
+    public void setColBatch(ArrayList<Integer[]> colBatch) {
+	this.colBatch = colBatch;
     }
 
     public void kill() {
-	this.isAlive = false;
+	isAlive = false;
     }
 
     @Override
     public void run(){
 	while (isAlive) {
-	    int res = 0;
-	    for (int i = 0; i < size; i++) {
-		res += row[i] * col[i];
+	    Integer[][] result = new Integer[rowBatch.size()][colBatch.size()];
+
+	    for (int i = 0; i < rowBatch.size(); i++) {
+		Integer[] row = rowBatch.get(i);
+
+		for (int j = 0; j < colBatch.size(); j++) {
+		    Integer[] col = colBatch.get(j);
+
+		    int res = 0;
+		    for (int k = 0; k < row.length; k++) {
+			res += row[k] * col[k];
+		    }
+
+		    result[i][j] = res;
+		}
 	    }
 
-	    controller.reportFinished(this, res);
+	    controller.reportFinished(this, result);
 	}
     }
 }
 
 public class BlockStriped {
     final int numThreads;
+    final int colsPerBatch;
     final ArrayList<Subtask> subtasks = new ArrayList<Subtask>();
     final ArrayList<Integer> subtaskColIds = new ArrayList<Integer>();
-    final ArrayList<Integer[]> rows = new ArrayList<Integer[]>();
-    final ArrayList<Integer[]> cols = new ArrayList<Integer[]>();
+    final ArrayList<ArrayList<Integer[]>> rowBatches = new ArrayList<ArrayList<Integer[]>>();
+    final ArrayList<ArrayList<Integer[]>> colBatches = new ArrayList<ArrayList<Integer[]>>();
     final Matrix MatrixC;
     int subtasksFinished = 0;
     int elementsCalculated = 0;
 
-    public BlockStriped(int numThreads, Matrix MatrixA, Matrix MatrixB) {
+    public BlockStriped(int numThreads, Matrix MatrixA, Matrix MatrixB) throws ArithmeticException {
 	int size = MatrixA.getSize();
-	this.numThreads = size;
+	this.numThreads = numThreads;
 	if (size != MatrixB.getSize()) {
 	    throw new ArithmeticException("Got matrices of different size!");
 	}
 	this.MatrixC = new Matrix(size);
 
-	for (int i = 0; i < size; i++) {
-	    rows.add(MatrixA.getRow(i));
-	    cols.add(MatrixB.getCol(i));
+	if (size % numThreads != 0 || numThreads > size || numThreads == 0) {
+	    throw new ArithmeticException("Can't divide cols for this number of threads!");
+	}
+
+	colsPerBatch = size / numThreads;
+
+	for (int i = 0; i < numThreads; i++) {
+	    ArrayList<Integer[]> rowBatch = new ArrayList<Integer[]>();
+	    ArrayList<Integer[]> colBatch = new ArrayList<Integer[]>();
+
+	    for (int j = 0; j < colsPerBatch; j++) {
+		rowBatch.add(MatrixA.getRow(i * colsPerBatch + j));
+		colBatch.add(MatrixB.getCol(i * colsPerBatch + j));
+	    }
+
+	    rowBatches.add(rowBatch);
+	    colBatches.add(colBatch);
 	}
     }
 
     public Matrix matrixMult() {
-	for (int i = 0; i < cols.size(); i++) {
-	    Subtask subtask = new Subtask(cols.size(), this);
-	    subtask.setRow(rows.get(i));
-	    subtask.setCol(cols.get(i));
+	for (int i = 0; i < numThreads; i++) {
+	    Subtask subtask = new Subtask(this);
+	    subtask.setRowBatch(rowBatches.get(i));
+	    subtask.setColBatch(colBatches.get(i));
 	    subtaskColIds.add(i);
 	    subtasks.add(subtask);
 	}
@@ -84,24 +108,24 @@ public class BlockStriped {
 	return MatrixC;
     }
 
-    public synchronized void reportFinished(Subtask subtask, int result) {
-	elementsCalculated++;
-	int i = subtasks.indexOf(subtask);
-	int j = subtaskColIds.get(i);
-	MatrixC.set(i, j, result);
-	//System.out.println("Finished: " + i + " " + j);
-	
-	int prevSubtaskId = getPrevSubtaskId(i);
+    public synchronized void reportFinished(Subtask subtask, Integer[][] result) {
+	int subtaskId = subtasks.indexOf(subtask);
+	int colBatchId = subtaskColIds.get(subtaskId);
+	int newColId = (colBatchId + 1) % numThreads;
 
-	int newColId = (j + 1) % numThreads;
-	subtaskColIds.set(i, newColId);
-	//System.out.println("subtasks finished : " + subtasksFinished);
-	subtask.setCol(cols.get(newColId));
-	
+	for (int i = 0; i < result.length; i++) {
+	    for (int j = 0; j < result[0].length; j++) {
+		MatrixC.set(i + subtaskId * colsPerBatch, j + colBatchId * colsPerBatch, result[i][j]);
+	    }
+	}
+
+	elementsCalculated += result.length;
+	subtaskColIds.set(subtaskId, newColId);
+	subtask.setColBatch(colBatches.get(newColId));
+
 	if (++subtasksFinished == numThreads) {
-	    //System.out.println("Control thread, thread: " + i);
 	    subtasksFinished = 0;
-	    if (elementsCalculated == rows.size() * cols.size()) {
+	    if (elementsCalculated == MatrixC.getSize() * MatrixC.getSize()) {
 		for (int k = 0; k < subtasks.size(); k++) {
 		    subtasks.get(k).kill();
 		}
@@ -111,22 +135,10 @@ public class BlockStriped {
 	    }
 	} else {
 	    synchronized(this) {
-		// while (!iterationFinished) {
-		    try {
-			//System.out.println("Waiting for iter, thread: " + i);
-			wait();
-			// Try to use reentrant lock here
-		    } catch (Exception ex) {}
-		// }
+		try {
+		    wait();
+		} catch (Exception ex) {}
 	    }
 	}
-    }
-
-    private int getPrevSubtaskId(int id) {
-	if (id == 0) {
-	    return numThreads - 1;
-	}
-
-	return id - 1;
     }
 }
