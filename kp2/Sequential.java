@@ -1,7 +1,7 @@
 public class Sequential {
     public static Matrix matrixMult(Matrix MatrixA, Matrix MatrixB) throws ArithmeticException {
 	int size = MatrixA.getSize();
-	Matrix MatrixC = new Matrix(size);
+	Matrix MatrixC = new Matrix(size, false);
 	if (size != MatrixB.getSize()) {
 	    throw new ArithmeticException("Got matrices of different size!");
 	}

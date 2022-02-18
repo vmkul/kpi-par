@@ -1,17 +1,21 @@
 import java.util.Random;
 
 public class Matrix {
-    final Integer[][] matrix;
-    final Random random = new Random();
-    final int size;
+    private final Integer[][] matrix;
+    private final Random random = new Random();
+    private final int size;
 
-    public Matrix(int size) {
+    public Matrix(int size, boolean randomize) {
 	this.size = size;
 	matrix = new Integer[size][size];
 
 	for (int i = 0; i < size; i++) {
 	    for (int j = 0; j < size; j++) {
-		matrix[i][j] = random.nextInt(1000);
+		if (randomize) {
+		    matrix[i][j] = random.nextInt(1000);
+		} else {
+		    matrix[i][j] = 0;
+		}
 	    }
 	}
     }
@@ -69,5 +73,35 @@ public class Matrix {
 	}
 	
 	return res;
+    }
+
+    public void addM(Matrix other) {
+	for (int i = 0; i < size; i++) {
+	    for (int j = 0; j < size; j++) {
+		set(i, j, get(i, j) + other.get(i, j));
+	    }
+	}
+    }
+
+    public Matrix getSubmatrix(int rowOffset, int colOffset, int size) {
+	Matrix res = new Matrix(size, false);
+
+	for (int i = 0; i < size; i++) {
+	    for (int j = 0; j < size; j++) {
+		res.set(i, j, get(i + rowOffset, j + colOffset));
+	    }
+	}
+
+	return res;
+    }
+
+    public void setSubmatrix(int rowOffset, int colOffset, Matrix m) {
+	int size = m.getSize();
+
+	for (int i = 0; i < size; i++) {
+	    for (int j = 0; j < size; j++) {
+		set(i + rowOffset, j + colOffset, m.get(i, j));
+	    }
+	}
     }
 }

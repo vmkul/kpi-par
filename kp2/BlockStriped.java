@@ -1,10 +1,10 @@
 import java.util.ArrayList;
 
 class Subtask extends Thread {
-    BlockStriped controller;
-    ArrayList<Integer[]> rowBatch;
-    ArrayList<Integer[]> colBatch;
-    boolean isAlive = true;
+    private final BlockStriped controller;
+    private ArrayList<Integer[]> rowBatch;
+    private ArrayList<Integer[]> colBatch;
+    private boolean isAlive = true;
 
     public Subtask(BlockStriped controller) {
 	this.controller = controller;
@@ -48,15 +48,15 @@ class Subtask extends Thread {
 }
 
 public class BlockStriped {
-    final int numThreads;
-    final int colsPerBatch;
-    final ArrayList<Subtask> subtasks = new ArrayList<Subtask>();
-    final ArrayList<Integer> subtaskColIds = new ArrayList<Integer>();
-    final ArrayList<ArrayList<Integer[]>> rowBatches = new ArrayList<ArrayList<Integer[]>>();
-    final ArrayList<ArrayList<Integer[]>> colBatches = new ArrayList<ArrayList<Integer[]>>();
-    final Matrix MatrixC;
-    int subtasksFinished = 0;
-    int elementsCalculated = 0;
+    private final int numThreads;
+    private final int colsPerBatch;
+    private final ArrayList<Subtask> subtasks = new ArrayList<Subtask>();
+    private final ArrayList<Integer> subtaskColIds = new ArrayList<Integer>();
+    private final ArrayList<ArrayList<Integer[]>> rowBatches = new ArrayList<ArrayList<Integer[]>>();
+    private final ArrayList<ArrayList<Integer[]>> colBatches = new ArrayList<ArrayList<Integer[]>>();
+    private final Matrix MatrixC;
+    private int subtasksFinished = 0;
+    private int elementsCalculated = 0;
 
     public BlockStriped(int numThreads, Matrix MatrixA, Matrix MatrixB) throws ArithmeticException {
 	int size = MatrixA.getSize();
@@ -64,7 +64,7 @@ public class BlockStriped {
 	if (size != MatrixB.getSize()) {
 	    throw new ArithmeticException("Got matrices of different size!");
 	}
-	this.MatrixC = new Matrix(size);
+	this.MatrixC = new Matrix(size, false);
 
 	if (size % numThreads != 0 || numThreads > size || numThreads == 0) {
 	    throw new ArithmeticException("Can't divide cols for this number of threads!");
