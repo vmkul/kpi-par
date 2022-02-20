@@ -1,13 +1,13 @@
 import java.util.Random;
 
 public class Matrix {
-    private final Integer[][] matrix;
+    private final int[][] matrix;
     private final Random random = new Random();
     private final int size;
 
     public Matrix(int size, boolean randomize) {
 	this.size = size;
-	matrix = new Integer[size][size];
+	matrix = new int[size][size];
 
 	for (int i = 0; i < size; i++) {
 	    for (int j = 0; j < size; j++) {
@@ -55,8 +55,8 @@ public class Matrix {
 	return true;
     }
 
-    public Integer[] getCol(int j) {
-	Integer[] res = new Integer[size];
+    public int[] getCol(int j) {
+	int[] res = new int[size];
 
 	for (int i = 0; i < size; i++) {
 	    res[i] = get(i, j);
@@ -65,14 +65,18 @@ public class Matrix {
 	return res;
     }
 
-    public Integer[] getRow(int i) {
-	Integer[] res = new Integer[size];
+    public int[] getRow(int i) {
+	int[] res = new int[size];
 
 	for (int j = 0; j < size; j++) {
 	    res[j] = get(i, j);
 	}
 	
 	return res;
+    }
+
+    public int[][] getArray() {
+	return matrix;
     }
 
     public void addM(Matrix other) {

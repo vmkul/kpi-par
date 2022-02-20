@@ -42,8 +42,8 @@ public class FoxMethod {
     private final int submatrixSize;
     private final int subsPerRow;
     private final ArrayList<ArrayList<FoxSubtask>> subtasks = new ArrayList<ArrayList<FoxSubtask>>();
-    private final Integer[] subACols;
-    private final Integer[] subBRows;
+    private final int[] subACols;
+    private final int[] subBRows;
     private final Matrix[][] ASubs;
     private final Matrix[][] BSubs;
     private final Matrix MatrixC;
@@ -68,8 +68,8 @@ public class FoxMethod {
 
 	ASubs = new Matrix[subsPerRow][subsPerRow];
 	BSubs = new Matrix[subsPerRow][subsPerRow];
-	subACols = new Integer[subsPerRow];
-	subBRows = new Integer[subsPerRow];
+	subACols = new int[subsPerRow];
+	subBRows = new int[subsPerRow];
 
 	for (int i = 0; i < subsPerRow; i++) {
 	    for (int j = 0; j < subsPerRow; j++) {
@@ -137,7 +137,6 @@ public class FoxMethod {
 
 	if (++subtasksFinished == numThreads) {
 	    subtasksFinished = 0;
-	    System.out.println("Finished stage");
 
 	    if (++stagesFinished == subsPerRow) {
 		killSubtasks();

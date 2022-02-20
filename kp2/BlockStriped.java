@@ -2,19 +2,21 @@ import java.util.ArrayList;
 
 class Subtask extends Thread {
     private final BlockStriped controller;
-    private ArrayList<Integer[]> rowBatch;
-    private ArrayList<Integer[]> colBatch;
+    private int[][] rowBatch;
+    private int[][] colBatch;
+    private final int[][] result;
     private boolean isAlive = true;
 
-    public Subtask(BlockStriped controller) {
+    public Subtask(BlockStriped controller, int size) {
 	this.controller = controller;
+	result = new int[size][size];
     }
 
-    public void setRowBatch(ArrayList<Integer[]> rowBatch) {
+    public void setRowBatch(int[][] rowBatch) {
 	this.rowBatch = rowBatch;
     }
 
-    public void setColBatch(ArrayList<Integer[]> colBatch) {
+    public void setColBatch(int[][] colBatch) {
 	this.colBatch = colBatch;
     }
 
@@ -25,13 +27,11 @@ class Subtask extends Thread {
     @Override
     public void run(){
 	while (isAlive) {
-	    Integer[][] result = new Integer[rowBatch.size()][colBatch.size()];
+	    for (int i = 0; i < rowBatch.length; i++) {
+		int[] row = rowBatch[i];
 
-	    for (int i = 0; i < rowBatch.size(); i++) {
-		Integer[] row = rowBatch.get(i);
-
-		for (int j = 0; j < colBatch.size(); j++) {
-		    Integer[] col = colBatch.get(j);
+		for (int j = 0; j < colBatch.length; j++) {
+		    int[] col = colBatch[j];
 
 		    int res = 0;
 		    for (int k = 0; k < row.length; k++) {
@@ -52,8 +52,8 @@ public class BlockStriped {
     private final int colsPerBatch;
     private final ArrayList<Subtask> subtasks = new ArrayList<Subtask>();
     private final ArrayList<Integer> subtaskColIds = new ArrayList<Integer>();
-    private final ArrayList<ArrayList<Integer[]>> rowBatches = new ArrayList<ArrayList<Integer[]>>();
-    private final ArrayList<ArrayList<Integer[]>> colBatches = new ArrayList<ArrayList<Integer[]>>();
+    private final ArrayList<int[][]> rowBatches = new ArrayList<int[][]>();
+    private final ArrayList<int[][]> colBatches = new ArrayList<int[][]>();
     private final Matrix MatrixC;
     private int subtasksFinished = 0;
     private int elementsCalculated = 0;
@@ -73,12 +73,12 @@ public class BlockStriped {
 	colsPerBatch = size / numThreads;
 
 	for (int i = 0; i < numThreads; i++) {
-	    ArrayList<Integer[]> rowBatch = new ArrayList<Integer[]>();
-	    ArrayList<Integer[]> colBatch = new ArrayList<Integer[]>();
+	    int[][] rowBatch = new int[colsPerBatch][size];
+	    int[][] colBatch = new int[colsPerBatch][size];
 
 	    for (int j = 0; j < colsPerBatch; j++) {
-		rowBatch.add(MatrixA.getRow(i * colsPerBatch + j));
-		colBatch.add(MatrixB.getCol(i * colsPerBatch + j));
+		rowBatch[j] = MatrixA.getRow(i * colsPerBatch + j);
+		colBatch[j] = MatrixB.getCol(i * colsPerBatch + j);
 	    }
 
 	    rowBatches.add(rowBatch);
@@ -88,7 +88,7 @@ public class BlockStriped {
 
     public Matrix matrixMult() {
 	for (int i = 0; i < numThreads; i++) {
-	    Subtask subtask = new Subtask(this);
+	    Subtask subtask = new Subtask(this, colsPerBatch);
 	    subtask.setRowBatch(rowBatches.get(i));
 	    subtask.setColBatch(colBatches.get(i));
 	    subtaskColIds.add(i);
@@ -108,7 +108,7 @@ public class BlockStriped {
 	return MatrixC;
     }
 
-    public synchronized void reportFinished(Subtask subtask, Integer[][] result) {
+    public synchronized void reportFinished(Subtask subtask, int[][] result) {
 	int subtaskId = subtasks.indexOf(subtask);
 	int colBatchId = subtaskColIds.get(subtaskId);
 	int newColId = (colBatchId + 1) % numThreads;
@@ -126,9 +126,7 @@ public class BlockStriped {
 	if (++subtasksFinished == numThreads) {
 	    subtasksFinished = 0;
 	    if (elementsCalculated == MatrixC.getSize() * MatrixC.getSize()) {
-		for (int k = 0; k < subtasks.size(); k++) {
-		    subtasks.get(k).kill();
-		}
+		killSubtasks();
 	    }
 	    synchronized(this) {
 		notifyAll();
@@ -139,6 +137,12 @@ public class BlockStriped {
 		    wait();
 		} catch (Exception ex) {}
 	    }
+	}
+    }
+
+    private void killSubtasks() {
+	for (int k = 0; k < subtasks.size(); k++) {
+	    subtasks.get(k).kill();
 	}
     }
 }

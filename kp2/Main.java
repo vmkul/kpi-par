@@ -1,49 +1,68 @@
+import java.util.ArrayList;
 import java.time.Instant;
 import java.time.Duration;
 
 public class Main {
-    final int MATRIX_SIZE = 1000;
-    
+    private static final int numThreads[] = new int[] {4, 16, 64, 256};
+    private static final int matrixSizes[] = new int[] {256, 512, 1024, 1536, 2048, 4864};
+
+    private static void availableSizes(int[] numThreads) {
+	for (int size = 1; size < 5000; size++) {
+	    boolean good = true;
+
+	    for (int nThreads : numThreads) {
+		double submSize = Math.sqrt((size * size) / nThreads);
+
+		if (!((submSize % 1) == 0 && (size % nThreads) == 0)) {
+		    good = false;
+		    break;
+		}
+	    }
+	    if (good) {
+		System.out.print(size + " ");
+	    }
+	}
+    }
+
     public synchronized static void main(String[] args) {
-	Matrix a = new Matrix(1000, true);
-	Matrix b = new Matrix(1000, true);
-	BlockStriped striped = new BlockStriped(100, a, b);
-	FoxMethod fox = new FoxMethod(100, a, b);
+	for (int size : matrixSizes) {
+	    System.out.println("Calculating for matrix size: " + size + "...");
 
-	System.out.println("Matrix A: ");
+	    Matrix a = new Matrix(size, true);
+	    Matrix b = new Matrix(size, true);
 
-	System.out.println("Matrix B: ");
+	    Instant start = Instant.now();
+	    Matrix seqResult = Sequential.matrixMult(a, b);
+	    Instant finish = Instant.now();
+	    long timeElapsed = Duration.between(start, finish).toMillis();
+	    System.out.println("  Duration of sequential: " + timeElapsed);
 
-	System.out.println("Seq A * B: ");
-	Instant start = Instant.now();
-	Matrix seqResult = Sequential.matrixMult(a, b);
-	//seqResult.print();
-	Instant finish = Instant.now();
-	long timeElapsedSeq = Duration.between(start, finish).toMillis();
-	//seqResult.print();
+	    for (int threadCount : numThreads) {
+		System.out.println("  Calculating for n threads: " + threadCount + "...");
 
-	System.out.println("BlockStriped A * B: ");
-	start = Instant.now();
-	Matrix stripedResult = striped.matrixMult();
-	finish = Instant.now();
-	long timeElapsedStriped = Duration.between(start, finish).toMillis();
+		start = Instant.now();
+		BlockStriped striped = new BlockStriped(threadCount, a, b);
+		Matrix stripedResult = striped.matrixMult();
+		finish = Instant.now();
+		timeElapsed = Duration.between(start, finish).toMillis();
+		System.out.println("    Duration of BlockStriped: " + timeElapsed);
 
+		start = Instant.now();
+		FoxMethod fox = new FoxMethod(threadCount, a, b);
+		Matrix foxResult = fox.matrixMult();
+		finish = Instant.now();
+		timeElapsed = Duration.between(start, finish).toMillis();
+		System.out.println("    Duration of Fox's method: " + timeElapsed);
 
-	System.out.println("Fox's method A * B: ");
-	start = Instant.now();
-	Matrix foxResult = fox.matrixMult();
-	//foxResult.print();
-	finish = Instant.now();
-	long timeElapsedFox = Duration.between(start, finish).toMillis();
-	//stripedResult.print();
-
-	System.out.println("Duration of seq: " + timeElapsedSeq);
-	System.out.println("Duration of striped: " + timeElapsedStriped);
-	System.out.println("Duration of fox: " + timeElapsedFox);
-
-
-	if (!foxResult.equalTo(seqResult)) {
-	    System.out.println("Stripped mult res != seq");
+		if (!seqResult.equalTo(stripedResult)) {
+		    System.out.println("Striped algorithm multiplication error");
+		    return;
+		}
+		if (!seqResult.equalTo(foxResult)) {
+		    System.out.println("Fox's algorithm multiplication error");
+		    return;
+		}
+	    }
 	}
     }
 }
