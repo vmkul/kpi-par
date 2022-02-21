@@ -56,7 +56,7 @@ public class BlockStriped {
     private final ArrayList<int[][]> colBatches = new ArrayList<int[][]>();
     private final Matrix MatrixC;
     private int subtasksFinished = 0;
-    private int elementsCalculated = 0;
+    private int stagesFinished = 0;
 
     public BlockStriped(int numThreads, Matrix MatrixA, Matrix MatrixB) throws ArithmeticException {
 	int size = MatrixA.getSize();
@@ -119,15 +119,16 @@ public class BlockStriped {
 	    }
 	}
 
-	elementsCalculated += result.length;
 	subtaskColIds.set(subtaskId, newColId);
 	subtask.setColBatch(colBatches.get(newColId));
 
 	if (++subtasksFinished == numThreads) {
 	    subtasksFinished = 0;
-	    if (elementsCalculated == MatrixC.getSize() * MatrixC.getSize()) {
+
+	    if (++stagesFinished == numThreads) {
 		killSubtasks();
 	    }
+
 	    synchronized(this) {
 		notifyAll();
 	    }
