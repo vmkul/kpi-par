@@ -119,6 +119,7 @@ public class FoxMethod {
     public synchronized void reportFinished(FoxSubtask subtask) {
 	int rowIndex = 0;
 	int colIndex = 0;
+	int curFinishedStages = stagesFinished;
 
 	for (int i = 0; i < subtasks.size(); i++) {
 	    colIndex = subtasks.get(i).indexOf(subtask);
@@ -146,10 +147,12 @@ public class FoxMethod {
 		notifyAll();
 	    }
 	} else {
-	    synchronized(this) {
-		try {
-		    wait();
-		} catch (Exception ex) {}
+	    while (curFinishedStages == stagesFinished) {
+		synchronized(this) {
+		    try {
+			wait();
+		    } catch (Exception ex) {}
+		}
 	    }
 	}
 

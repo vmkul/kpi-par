@@ -1,13 +1,13 @@
 import java.util.ArrayList;
 
-class Subtask extends Thread {
+class StripedSubtask extends Thread {
     private final BlockStriped controller;
     private int[][] rowBatch;
     private int[][] colBatch;
     private final int[][] result;
     private boolean isAlive = true;
 
-    public Subtask(BlockStriped controller, int size) {
+    public StripedSubtask(BlockStriped controller, int size) {
 	this.controller = controller;
 	result = new int[size][size];
     }
@@ -50,7 +50,7 @@ class Subtask extends Thread {
 public class BlockStriped {
     private final int numThreads;
     private final int colsPerBatch;
-    private final ArrayList<Subtask> subtasks = new ArrayList<Subtask>();
+    private final ArrayList<StripedSubtask> subtasks = new ArrayList<StripedSubtask>();
     private final ArrayList<Integer> subtaskColIds = new ArrayList<Integer>();
     private final ArrayList<int[][]> rowBatches = new ArrayList<int[][]>();
     private final ArrayList<int[][]> colBatches = new ArrayList<int[][]>();
@@ -88,7 +88,7 @@ public class BlockStriped {
 
     public Matrix matrixMult() {
 	for (int i = 0; i < numThreads; i++) {
-	    Subtask subtask = new Subtask(this, colsPerBatch);
+	    StripedSubtask subtask = new StripedSubtask(this, colsPerBatch);
 	    subtask.setRowBatch(rowBatches.get(i));
 	    subtask.setColBatch(colBatches.get(i));
 	    subtaskColIds.add(i);
@@ -108,10 +108,11 @@ public class BlockStriped {
 	return MatrixC;
     }
 
-    public synchronized void reportFinished(Subtask subtask, int[][] result) {
+    public synchronized void reportFinished(StripedSubtask subtask, int[][] result) {
 	int subtaskId = subtasks.indexOf(subtask);
 	int colBatchId = subtaskColIds.get(subtaskId);
 	int newColId = (colBatchId + 1) % numThreads;
+	int curFinishedStages = stagesFinished;
 
 	for (int i = 0; i < result.length; i++) {
 	    for (int j = 0; j < result[0].length; j++) {
@@ -133,10 +134,12 @@ public class BlockStriped {
 		notifyAll();
 	    }
 	} else {
-	    synchronized(this) {
-		try {
-		    wait();
-		} catch (Exception ex) {}
+	    while (curFinishedStages == stagesFinished) {
+		synchronized(this) {
+		    try {
+			wait();
+		    } catch (Exception ex) {}
+		}
 	    }
 	}
     }
