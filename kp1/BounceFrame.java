@@ -7,10 +7,10 @@ public class BounceFrame extends JFrame {
     private BallCanvas canvas;
     private int droppedCount = 0;
     private JLabel droppedCountLabel;
-    private Thread prevThread = null;
+    private BallThread prevThread = null;
     public static final int WIDTH = 900;
     public static final int HEIGHT = 700;
-    
+
     public BounceFrame() {
 	this.setSize(WIDTH, HEIGHT);
 	this.setTitle("Bounce program");
@@ -39,6 +39,11 @@ public class BounceFrame extends JFrame {
 	canvas.addPocket(new Pocket(canvas, (WIDTH - 40) / 2, 0));
 	canvas.addPocket(new Pocket(canvas, (WIDTH - 40) / 2, HEIGHT - 115));
 
+	for (int i = 0; i < 2000; i++) {
+	    addBall(Color.blue, Thread.MIN_PRIORITY, false);
+	}
+	addBall(Color.red, Thread.MAX_PRIORITY, false);
+
 	buttonAddRegular.addActionListener(new ActionListener() {
 		@Override
 		public void actionPerformed(ActionEvent e) {
@@ -59,14 +64,14 @@ public class BounceFrame extends JFrame {
 		    addBall(Color.red, Thread.MAX_PRIORITY, false);
 		}
 	    });
-	
+
 	buttonStop.addActionListener(new ActionListener() {
 		@Override
 		public void actionPerformed(ActionEvent e) {
 		    System.exit(0);
 		}
 	    });
- 
+
 	buttonPanel.add(buttonAddRegular);
 	buttonPanel.add(buttonAddBlue);
 	buttonPanel.add(buttonAddRed);
@@ -78,14 +83,10 @@ public class BounceFrame extends JFrame {
 
     private void addBall(Color c, int priority, boolean waitForPrevious) {
 	Ball b;
-	if (waitForPrevious) {
-	    b = new Ball(canvas, this, c, prevThread);
-	} else {
-	    b = new Ball(canvas, this, c);
-	}
+	b = new Ball(canvas, this, c);
 	canvas.addBall(b);
 
-	BallThread thread = new BallThread(b);
+	BallThread thread = new BallThread(b, waitForPrevious ? prevThread : null);
 	prevThread = thread;
 	thread.setPriority(priority);
 	thread.start();

@@ -28,7 +28,7 @@ public class BallCanvas extends JPanel{
 
 	return false;
     }
-    
+
     @Override
     public void paintComponent(Graphics g){
 	super.paintComponent(g);

@@ -16,22 +16,17 @@ class Ball {
     private int dy = 2;
 
     public Ball(BallCanvas c, BounceFrame frame, Color color) {
-	this(c, frame, color, null);
-    }
-
-    public Ball(BallCanvas c, BounceFrame frame, Color color, Thread blockingThread) {
 	this.canvas = c;
 	this.frame = frame;
 	this.color = color;
-	this.blockingThread = blockingThread;
 
-	if(Math.random()<0.5){
-	    x = new Random().nextInt(this.canvas.getWidth());
-	    y = 0;
-	}else{
-	    x = 0;
-	    y = new Random().nextInt(this.canvas.getHeight());
-	}
+	// if(Math.random()<0.5){
+	//     x = new Random().nextInt(this.canvas.getWidth());
+	//     y = 0;
+	// }else{
+	//     x = 0;
+	//     y = new Random().nextInt(this.canvas.getHeight());
+	// }
     }
 
     public static void f(){
@@ -44,20 +39,11 @@ class Ball {
     }
 
     public boolean move(){
-	if (this.blockingThread != null) {
-	    try {
-		blockingThread.join();
-	    } catch (InterruptedException ex) {
-
-	    }
-	    blockingThread = null;
-	}
-  
-	if (canvas.hasDropped(this)) {
-	    canvas.removeBall(this);
-	    frame.incDropCount();
-	    return true;
-	}
+	// if (canvas.hasDropped(this)) {
+	//     canvas.removeBall(this);
+	//     frame.incDropCount();
+	//     return true;
+	// }
 	
 	x+=dx;
 	y+=dy;
