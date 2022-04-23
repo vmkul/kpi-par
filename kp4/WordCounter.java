@@ -65,7 +65,16 @@ class Folder {
 
 /* ......................................................................................... */
 
-public class WordCounter {    
+public class WordCounter {
+    public HashMap<Integer, Integer> wordCount = new HashMap<>();
+
+    private void saveWordLength(String word) {
+        int len = word.length();
+        if (len == 0) return;
+        synchronized (wordCount) { // HashMap is not thread-safe
+            wordCount.put(Integer.valueOf(len), wordCount.getOrDefault(Integer.valueOf(len), 0) + 1);
+        }
+    }
 
 /* ......................................................................................... */
 
@@ -73,79 +82,68 @@ public class WordCounter {
         return line.trim().split("(\\s|\\p{Punct})+");
     }
     
-    Long occurrencesCount(Document document, String searchedWord) {
-        long count = 0;
+    void traverseDocument(Document document) {
         for (String line : document.getLines()) {
             for (String word : wordsIn(line)) {
-                if (searchedWord.equals(word)) {
-                    count = count + 1;
-                }
+                saveWordLength(word);
+
             }
         }
-        return count;
     }
     
 /* ......................................................................................... */
     
-    Long countOccurrencesOnSingleThread(Folder folder, String searchedWord) {
-        long count = 0;
+    void traverseDocumentOnSingleThread(Folder folder) {
         for (Folder subFolder : folder.getSubFolders()) {
-            count = count + countOccurrencesOnSingleThread(subFolder, searchedWord);
+            traverseDocumentOnSingleThread(subFolder);
         }
         for (Document document : folder.getDocuments()) {
-            count = count + occurrencesCount(document, searchedWord);
+            traverseDocument(document);
         }
-        return count;
     }
 
 /* ......................................................................................... */
 
-    class DocumentSearchTask extends RecursiveTask<Long> {
+    class DocumentSearchTask extends RecursiveAction {
         private final Document document;
-        private final String searchedWord;
         
-        DocumentSearchTask(Document document, String searchedWord) {
+        DocumentSearchTask(Document document) {
             super();
             this.document = document;
-            this.searchedWord = searchedWord;
         }
         
         @Override
-        protected Long compute() {
-            return occurrencesCount(document, searchedWord);
+        protected void compute() {
+            traverseDocument(document);
         }
     }
 
 /* ......................................................................................... */
 
-    class FolderSearchTask extends RecursiveTask<Long> {
+    class FolderSearchTask extends RecursiveAction {
         private final Folder folder;
-        private final String searchedWord;
         
-        FolderSearchTask(Folder folder, String searchedWord) {
+        FolderSearchTask(Folder folder) {
             super();
             this.folder = folder;
-            this.searchedWord = searchedWord;
         }
         
         @Override
-        protected Long compute() {
-            long count = 0L;
-            List<RecursiveTask<Long>> forks = new LinkedList<>();
+        protected void compute() {
+            List<RecursiveAction> forks = new LinkedList<>();
             for (Folder subFolder : folder.getSubFolders()) {
-                FolderSearchTask task = new FolderSearchTask(subFolder, searchedWord);
+                FolderSearchTask task = new FolderSearchTask(subFolder);
                 forks.add(task);
                 task.fork();
             }
             for (Document document : folder.getDocuments()) {
-                DocumentSearchTask task = new DocumentSearchTask(document, searchedWord);
+                DocumentSearchTask task = new DocumentSearchTask(document);
                 forks.add(task);
                 task.fork();
             }
-            for (RecursiveTask<Long> task : forks) {
-                count = count + task.join();
+            for (RecursiveAction task : forks) {
+                task.join();
             }
-            return count;
         }
     }
         
@@ -153,18 +151,48 @@ public class WordCounter {
     
     private final ForkJoinPool forkJoinPool = new ForkJoinPool();
     
-    Long countOccurrencesInParallel(Folder folder, String searchedWord) {
-        return forkJoinPool.invoke(new FolderSearchTask(folder, searchedWord));
+    void countOccurrencesInParallel(Folder folder) {
+        forkJoinPool.invoke(new FolderSearchTask(folder));
     }
 
 /* ......................................................................................... */
+
+    private double calcAverage() {
+        int sum = 0;
+        int count = 0;
+
+        for (Map.Entry<Integer, Integer> entry : wordCount.entrySet()) {
+            sum += entry.getKey() * entry.getValue();
+            count += entry.getValue();
+        }
+
+        return (double) sum / count;
+    }
+
+    private double calcStd() {
+        double sum = 0;
+        double count = 0;
+        double mean = calcAverage();
+
+        for (Map.Entry<Integer, Integer> entry : wordCount.entrySet()) {
+            double diff = Math.pow(entry.getKey() - mean, 2);
+            count += entry.getValue();
+            sum += diff * entry.getValue();
+        }
+
+        return sum / count;
+    }
+
+    private void printWordCounts() {
+        for (Map.Entry<Integer, Integer> entry : wordCount.entrySet()) {
+            System.out.println(String.format("Word length %d => %d", entry.getKey(), entry.getValue()));
+        }
+    }
     
     public static void main(String[] args) throws IOException {
-        WordCounter wordCounter = new WordCounter();
         Folder folder = Folder.fromDirectory(new File(args[0]));
         
-        final int repeatCount = Integer.decode(args[2]);
-        long counts;
+        final int repeatCount = Integer.decode(args[1]);
         long startTime;
         long stopTime;
         
@@ -172,19 +200,27 @@ public class WordCounter {
         long[] forkedThreadTimes = new long[repeatCount];
         
         for (int i = 0; i < repeatCount; i++) {
+            WordCounter wordCounter = new WordCounter();
             startTime = System.currentTimeMillis();
-            counts = wordCounter.countOccurrencesOnSingleThread(folder, args[1]);
+            wordCounter.traverseDocumentOnSingleThread(folder);
             stopTime = System.currentTimeMillis();
             singleThreadTimes[i] = (stopTime - startTime);
-            System.out.println(counts + " , single thread search took " + singleThreadTimes[i] + "ms");
+            System.out.println("single thread search took " + singleThreadTimes[i] + "ms");
+            wordCounter.printWordCounts();
+            System.out.println("Average value: " + wordCounter.calcAverage());
+            System.out.println("Standard deviation: " + wordCounter.calcStd());
         }
         
         for (int i = 0; i < repeatCount; i++) {
+            WordCounter wordCounter = new WordCounter();
             startTime = System.currentTimeMillis();
-            counts = wordCounter.countOccurrencesInParallel(folder, args[1]);
+            wordCounter.countOccurrencesInParallel(folder);
             stopTime = System.currentTimeMillis();
             forkedThreadTimes[i] = (stopTime - startTime);
-            System.out.println(counts + " , fork / join search took " + forkedThreadTimes[i] + "ms");
+            System.out.println("fork / join search took " + forkedThreadTimes[i] + "ms");
+            wordCounter.printWordCounts();
+            System.out.println("Average value: " + wordCounter.calcAverage());
+            System.out.println("Standard deviation: " + wordCounter.calcStd());
         }
         
         System.out.println("\nCSV Output:\n");
