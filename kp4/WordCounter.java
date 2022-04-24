@@ -66,15 +66,7 @@ class Folder {
 /* ......................................................................................... */
 
 public class WordCounter {
-    public HashMap<Integer, Integer> wordCount = new HashMap<>();
-
-    private void saveWordLength(String word) {
-        int len = word.length();
-        if (len == 0) return;
-        synchronized (wordCount) { // HashMap is not thread-safe
-            wordCount.put(Integer.valueOf(len), wordCount.getOrDefault(Integer.valueOf(len), 0) + 1);
-        }
-    }
+    public HashMap<Document, Set<String>> documentWords = new HashMap<>();
 
 /* ......................................................................................... */
 
@@ -83,11 +75,16 @@ public class WordCounter {
     }
     
     void traverseDocument(Document document) {
+        HashSet<String> words = new HashSet<>();
+
         for (String line : document.getLines()) {
             for (String word : wordsIn(line)) {
-                saveWordLength(word);
-
+                words.add(word);
             }
+        }
+
+        synchronized (documentWords) {
+            documentWords.put(document, words);
         }
     }
     
@@ -100,6 +97,18 @@ public class WordCounter {
         for (Document document : folder.getDocuments()) {
             traverseDocument(document);
         }
+    }
+
+    Set<String> calcCommonWords() {
+        Iterator<Set<String>> vals = documentWords.values().iterator();
+        if (!vals.hasNext()) return new HashSet<>();
+        Set<String> res = vals.next();
+
+        while (vals.hasNext()) {
+            res.retainAll(vals.next());
+        }
+
+        return res;
     }
 
 /* ......................................................................................... */
@@ -157,38 +166,6 @@ public class WordCounter {
 
 /* ......................................................................................... */
 
-    private double calcAverage() {
-        int sum = 0;
-        int count = 0;
-
-        for (Map.Entry<Integer, Integer> entry : wordCount.entrySet()) {
-            sum += entry.getKey() * entry.getValue();
-            count += entry.getValue();
-        }
-
-        return (double) sum / count;
-    }
-
-    private double calcStd() {
-        double sum = 0;
-        double count = 0;
-        double mean = calcAverage();
-
-        for (Map.Entry<Integer, Integer> entry : wordCount.entrySet()) {
-            double diff = Math.pow(entry.getKey() - mean, 2);
-            count += entry.getValue();
-            sum += diff * entry.getValue();
-        }
-
-        return sum / count;
-    }
-
-    private void printWordCounts() {
-        for (Map.Entry<Integer, Integer> entry : wordCount.entrySet()) {
-            System.out.println(String.format("Word length %d => %d", entry.getKey(), entry.getValue()));
-        }
-    }
-    
     public static void main(String[] args) throws IOException {
         Folder folder = Folder.fromDirectory(new File(args[0]));
         
@@ -203,24 +180,24 @@ public class WordCounter {
             WordCounter wordCounter = new WordCounter();
             startTime = System.currentTimeMillis();
             wordCounter.traverseDocumentOnSingleThread(folder);
+            Set<String> commonWords = wordCounter.calcCommonWords();
             stopTime = System.currentTimeMillis();
             singleThreadTimes[i] = (stopTime - startTime);
             System.out.println("single thread search took " + singleThreadTimes[i] + "ms");
-            wordCounter.printWordCounts();
-            System.out.println("Average value: " + wordCounter.calcAverage());
-            System.out.println("Standard deviation: " + wordCounter.calcStd());
+            System.out.println(commonWords);
+            System.out.println("Books have " + commonWords.size() + " words in common");
         }
         
         for (int i = 0; i < repeatCount; i++) {
             WordCounter wordCounter = new WordCounter();
             startTime = System.currentTimeMillis();
             wordCounter.countOccurrencesInParallel(folder);
+            Set<String> commonWords = wordCounter.calcCommonWords();
             stopTime = System.currentTimeMillis();
             forkedThreadTimes[i] = (stopTime - startTime);
             System.out.println("fork / join search took " + forkedThreadTimes[i] + "ms");
-            wordCounter.printWordCounts();
-            System.out.println("Average value: " + wordCounter.calcAverage());
-            System.out.println("Standard deviation: " + wordCounter.calcStd());
+            System.out.println(commonWords);
+            System.out.println("Books have " + commonWords.size() + " words in common");
         }
         
         System.out.println("\nCSV Output:\n");
