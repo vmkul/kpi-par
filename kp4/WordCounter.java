@@ -8,9 +8,15 @@ import java.util.concurrent.*;
 
 class Document {
     private final List<String> lines;
+    private final String name;
     
-    Document(List<String> lines) {
+    Document(String name, List<String> lines) {
         this.lines = lines;
+        this.name = name;
+    }
+
+    public String getName() {
+        return name;
     }
     
     List<String> getLines() {
@@ -26,7 +32,7 @@ class Document {
                 line = reader.readLine();
             }
         }
-        return new Document(lines);
+        return new Document(file.getName(), lines);
     }
 }
 
@@ -67,6 +73,48 @@ class Folder {
 
 public class WordCounter {
     public HashMap<Document, Set<String>> documentWords = new HashMap<>();
+    private Set<String> ITterms = new HashSet<>(Arrays.asList(
+   "data",
+        "internet",
+        "computer",
+        "software",
+        "database",
+        "electronics",
+        "information",
+        "it",
+        "engineering",
+        "system",
+        "informatics",
+        "network",
+        "computing",
+        "communication",
+        "hardware",
+        "architecture",
+        "intranet",
+        "cyber",
+        "infostructure",
+        "cybernetics",
+        "cyberspace",
+        "intel",
+        "peripheral",
+        "source",
+        "update",
+        "path",
+        "automation",
+        "robotics",
+        "digital",
+        "library",
+        "web",
+        "class",
+        "method",
+        "constructor",
+        "string",
+        "integer",
+        "object",
+        "identifier",
+        "prototype",
+        "compiler"
+   ));
 
 /* ......................................................................................... */
 
@@ -106,6 +154,27 @@ public class WordCounter {
 
         while (vals.hasNext()) {
             res.retainAll(vals.next());
+        }
+
+        return res;
+    }
+
+    int calcPercentage(Set<String> words) {
+        int commonWords = 0;
+        for (String word : words) {
+            if (ITterms.contains(word)) {
+                commonWords++;
+            }
+        }
+
+        return (int)(((double) commonWords / ITterms.size()) * 100);
+    }
+
+    Map<String, Integer> calcPercentages() {
+        HashMap<String, Integer> res = new HashMap<>();
+
+        for (Map.Entry<Document, Set<String>> entry : documentWords.entrySet()) {
+            res.put(entry.getKey().getName(), calcPercentage(entry.getValue()));
         }
 
         return res;
@@ -180,24 +249,28 @@ public class WordCounter {
             WordCounter wordCounter = new WordCounter();
             startTime = System.currentTimeMillis();
             wordCounter.traverseDocumentOnSingleThread(folder);
-            Set<String> commonWords = wordCounter.calcCommonWords();
+            Map<String, Integer> percentages = wordCounter.calcPercentages();
             stopTime = System.currentTimeMillis();
             singleThreadTimes[i] = (stopTime - startTime);
             System.out.println("single thread search took " + singleThreadTimes[i] + "ms");
-            System.out.println(commonWords);
-            System.out.println("Books have " + commonWords.size() + " words in common");
+            System.out.println("IT book percentage");
+            for (Map.Entry<String, Integer> entry : percentages.entrySet()) {
+                System.out.println(entry.getKey() + " => " + entry.getValue() + "%");
+            }
         }
         
         for (int i = 0; i < repeatCount; i++) {
             WordCounter wordCounter = new WordCounter();
             startTime = System.currentTimeMillis();
             wordCounter.countOccurrencesInParallel(folder);
-            Set<String> commonWords = wordCounter.calcCommonWords();
+            Map<String, Integer> percentages = wordCounter.calcPercentages();
             stopTime = System.currentTimeMillis();
             forkedThreadTimes[i] = (stopTime - startTime);
             System.out.println("fork / join search took " + forkedThreadTimes[i] + "ms");
-            System.out.println(commonWords);
-            System.out.println("Books have " + commonWords.size() + " words in common");
+            System.out.println("IT book percentage");
+            for (Map.Entry<String, Integer> entry : percentages.entrySet()) {
+                System.out.println(entry.getKey() + " => " + entry.getValue() + "%");
+            }
         }
         
         System.out.println("\nCSV Output:\n");
